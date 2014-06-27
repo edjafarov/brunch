@@ -1,6 +1,6 @@
 # Configuration file
 
-NOTE: This page may refer to new features that have not yet been published. To the see the documentation that matches the current released version, take a look at this [document in the 'stable' branch](https://github.com/brunch/brunch/blob/stable/docs/config.md).
+NOTE: This page may refer to new features that have not yet been published. To see the documentation that matches the current released version, take a look at this [document in the 'stable' branch](https://github.com/brunch/brunch/blob/stable/docs/config.md).
 
 Brunch uses configuration file (`brunch-config.coffee` or `brunch-config.js`) located in the root directory to control various aspects of your application.
 
@@ -25,10 +25,11 @@ paths:
 
 ## `files`
 
-`Required, object`: `files` configures handling of application files: which compiler would be used on which file, what name should output file have etc.
+`Required, object`: `files` configures handling of application files: which compiler would be used on which file, what name should output file have etc. Any paths specified here must be listed in `paths.watched` as described above, for building.
 
 * `<type>`: `javascripts`, `stylesheets` or `templates`
-    * joinTo: (required) describes how files will be compiled & joined together. Available formats:
+    * joinTo: (required) describes how files will be compiled & joined together.
+      Available formats:
         * 'outputFilePath' in order to have all source files compiled together to one
         * map of ('outputFilePath': [anymatch set](https://github.com/es128/anymatch#anymatch))
     * order: (optional) defines compilation order. `vendor` files will be compiled before other ones even if they are not present here.
@@ -168,16 +169,21 @@ plugins:
 
 `Object`: contains params of webserver that runs on `brunch watch --server`.
 
-* `path`: (optional) path to nodejs file that will be loaded. The file must contain `exports.startServer` function:
+* `path`: (optional) path to nodejs file that will be loaded to run your custom server. It must contain `exports.startServer` function:
 
     ```coffeescript
     exports.startServer = (port, path, callback) ->
       # callback doesn't take any parameters and (if provided) should be called after server is started
       # should return an instance of http.Server
     ```
+  If not specified, Brunch will use [pushserve](https://github.com/paulmillr/pushserve). If using your own, only `port` from the following options can be set from the config.
 
-* `port`: (optional) port on which server will run
-* `base`: (optional) base URL from which to serve the app
+* `port`: port on which server will run. Default: `3333`
+* `base`: base URL from which to serve the app. Default: `''`
+* `indexPath`: path to serve when base URL is requested. Default `index.html`
+* `noPushState`: respond with 404 instead of `indexPath` for unknown paths. Default `false`
+* `noCors`: disables CORS headers. Default `false`
+* `stripSlashes`: removes trailing slashes from URLs. Default `false`
 
 Example:
 
@@ -186,6 +192,7 @@ server:
   path: 'server.coffee'
   port: 6832
   base: '/myapp'
+  stripSlashes: true
 ```
 
 ## `sourceMaps`
@@ -195,12 +202,26 @@ server:
 
 ## `fileListInterval`
 
-`Number`: Allows to set an interval in ms which determines how often brunch file list
-should be checked for new files (internal and usually not needed prop).
+`Integer`: Sets an interval in ms which determines how often brunch file list should be
+checked for new files. Default `65`. 
+
+On large projects and/or environments with slow disk I/O, the value may need to be increased 
+to ensure a `brunch build` completes properly in one cycle. However, higher values harm 
+`brunch watch` performance, so consider changing it in an environment-specific way using 
+`overrides`.
 
 ## `overrides`
 
 `Object`: Alternate config settings to activate via command line switches (`--env SETTING`). Multiple sets of overrides can be applied at once using a comma-separated list (`--env foo,bar`).
+
+It is also possible to set an additional environment value using the `BRUNCH_ENV` environment variable. This can be especially useful when combined with [dotenv](https://npmjs.org/package/dotenv).
+
+Examples:
+
+```sh
+brunch watch --env testing
+BRUNCH_ENV="testing" brunch build
+```
 
 Defaults:
 
@@ -211,6 +232,13 @@ overrides:
     sourceMaps: false
     plugins: autoReload: enabled: false
 ```
+
+Caveats:
+
+* If both `files[<type>].joinTo` and `overrides[<env>].files[<type>].joinTo` are defined, the value of `files[<type>].joinTo` will be overwritten by, not merged with, `overrides`.
+* If both `files[<type>].order` and `overrides[<env>].files[<type>].order` are defined, the value of `files[<type>].order` will be overwritten by, not merged with, `overrides`.
+
+In other words, `joinTo` and `order` don't merge if defined under `overrides`, but you still can override one while inheriting the base setting for the other.
 
 ## `watcher`
 

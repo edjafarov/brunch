@@ -11,8 +11,8 @@ readComponents = require 'read-components'
 debug = require('debug')('brunch:helpers')
 commonRequireDefinition = require 'commonjs-require-definition'
 anysort = require 'anysort'
-# Just require.
-require 'coffee-script'
+coffee = require 'coffee-script'
+coffee.register()
 
 # Extends the object with properties from another object.
 # Example
@@ -26,15 +26,21 @@ exports.extend = extend = (object, properties) ->
   object
 
 applyOverrides = (config, options) ->
-  options.env.forEach (override) ->
+  # Allow the environment to be set from environment variable
+  environments = options.env
+  if process.env.BRUNCH_ENV?
+    environments.unshift process.env.BRUNCH_ENV
+
+  environments.forEach (override) ->
     deepExtend config, config.overrides?[override] or {}, config.files
   config
 
 deepExtend = (object, properties, rootFiles = {}) ->
+  nestedObjs = Object.keys(rootFiles).map (_) -> rootFiles[_]
   Object.keys(properties).forEach (key) ->
     value = properties[key]
-    # Special case for files[type]: don't merge properties.
-    if toString.call(value) is '[object Object]' and object isnt rootFiles
+    # Special case for files[type]: don't merge nested objects.
+    if toString.call(value) is '[object Object]' and object not in nestedObjs
       object[key] ?= {}
       deepExtend object[key], value, rootFiles
     else
@@ -69,11 +75,12 @@ exports.install = install = (rootPath, command, callback = (->)) ->
 
 exports.isWindows = isWindows = do -> os.platform() is 'win32'
 
-exports.replaceSlashes = replaceSlashes = (_) ->
-  if isWindows then _.replace(/\//g, '\\') else _
+windowsStringReplace = (search, replacement) -> (_) ->
+  if isWindows && typeof _ is 'string' then _.replace(search, replacement) else _
+    
+exports.replaceSlashes = replaceSlashes = windowsStringReplace(/\//g, '\\')
 
-exports.replaceBackSlashes = replaceBackSlashes = (_) ->
-  if isWindows then _.replace(/\\/g, '\/') else _
+exports.replaceBackSlashes = replaceBackSlashes = windowsStringReplace(/\\/g, '\/')
 
 exports.replaceConfigSlashes = replaceConfigSlashes = (config) ->
   return config unless isWindows
@@ -222,8 +229,7 @@ exports.setConfigDefaults = setConfigDefaults = (config, configPath) ->
   conventions.assets  ?= /assets[\\/]/
   conventions.ignored ?= paths.ignored ? [
     /[\\/]_/
-    /vendor[\\/]node[\\/]/
-    /vendor[\\/]bundle[\\/]/
+    /vendor[\\/](node|j?ruby-.*|bundle)[\\/]/
   ]
   conventions.vendor  ?= /(^bower_components|vendor)[\\/]/
 
@@ -337,7 +343,7 @@ exports.loadConfig = (configPath = 'brunch-config', options = {}, callback) ->
     delete require.cache[fullPath]
     config = require(fullPath).config
   catch error
-    if configPath is 'brunch-config'
+    if configPath is 'brunch-config' and error.code is 'MODULE_NOT_FOUND'
       # start to warn about deprecation of 'config' with 1.8 release
       # seamless and silent fallback until then
       return exports.loadConfig 'config', options, callback
