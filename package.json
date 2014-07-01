@@ -1,7 +1,7 @@
 {
   "name": "brunch",
   "description": "A lightweight approach to building HTML5 applications with emphasis on elegance and simplicity",
-  "version": "1.7.14",
+  "version": "1.7.14-my",
   "keywords": [
     "assembler",
     "builder",
@@ -44,8 +44,8 @@
     "init-skeleton": "~0.2.0",
     "loggy": "~0.2.0",
     "pushserve": "~0.1.6",
-    "read-components": "~0.6.0",
-    "commonjs-require-definition": "~0.1.0",
+    "read-components": "git+https://git@github.com/paulmillr/read-components.git",
+    "commonjs-require-definition": "git+https://git@github.com/brunch/commonjs-require-definition.git",
     "async-each": "~0.1.2",
     "async-waterfall": "~0.1.2",
     "anysort": "~0.1.0"
